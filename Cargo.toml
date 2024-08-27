@@ -1,0 +1,20 @@
+[package]
+name = "ip_geolocation_2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.28.0", features = ["full"] }
+reqwest = { version = "0.11.17", features = ["json"] }
+serde = { version = "1.0.160", features = ["derive"] }
+serde_json = "1.0.96"
+futures = "0.3.28"
+chrono = "0.4.24"
+axum = "0.6.18"
+tower-http = { version = "0.4.0", features = ["cors"] }
+ipnetwork = "0.20.0"  # Add this line for the cloud IP detection feature
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

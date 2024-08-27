@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Geolocation and Port Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #progressBar {
+            width: 100%;
+            background-color: #f0f0f0;
+            padding: 3px;
+            border-radius: 3px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, .2);
+        }
+        #progressBar div {
+            width: 0;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 3px;
+            transition: width 0.5s ease-in-out;
+        }
+        #connectionStatus {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>IP Geolocation and Port Scanner</h1>
+
+    <div id="connectionStatus" class="disconnected">Disconnected</div>
+
+    <form id="ipForm">
+        <textarea id="ipInput" rows="5" cols="50" placeholder="Enter IP addresses, one per line"></textarea><br>
+        <input type="checkbox" id="useDefaultOutput" checked>
+        <label for="useDefaultOutput">Use default output directory</label><br>
+        <button type="submit">Process IPs</button>
+    </form>
+
+    <div id="progressContainer" style="display: none;">
+        <h3>Progress: <span id="progressText">0%</span></h3>
+        <div id="progressBar"><div></div></div>
+    </div>
+
+    <div id="scanningLog"></div>
+    <div id="result"></div>
+    <div id="metrics"></div>
+    <div id="ipResults"></div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api/process-ips';
+        const connectionStatus = document.getElementById('connectionStatus');
+        const ipForm = document.getElementById('ipForm');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar').firstElementChild;
+        const progressText = document.getElementById('progressText');
+        const scanningLog = document.getElementById('scanningLog');
+        const resultDiv = document.getElementById('result');
+        const metricsDiv = document.getElementById('metrics');
+        const ipResultsDiv = document.getElementById('ipResults');
+
+        // Check connection to backend
+        fetch(API_URL, { method: 'OPTIONS' })
+            .then(() => {
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.classList.remove('disconnected');
+                connectionStatus.classList.add('connected');
+            })
+            .catch(() => {
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.classList.remove('connected');
+                connectionStatus.classList.add('disconnected');
+            });
+
+        ipForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ips = document.getElementById('ipInput').value;
+            const useDefaultOutput = document.getElementById('useDefaultOutput').checked;
+
+            progressContainer.style.display = 'block';
+            scanningLog.innerHTML = '<h3>Scanning Log:</h3>';
+            resultDiv.innerHTML = '';
+            metricsDiv.innerHTML = '';
+            ipResultsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ips, use_default_output: useDefaultOutput }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `<h3>Result:</h3><p>${data.message}</p>`;
+                metricsDiv.innerHTML = `
+                    <h3>Metrics:</h3>
+                    <p>Total Requests: ${data.metrics.total_requests}</p>
+                    <p>Success Rate: ${data.metrics.success_rate.toFixed(2)}%</p>
+                    <p>Average Response Time: ${data.metrics.average_response_time.toFixed(2)}ms</p>
+                `;
+
+                ipResultsDiv.innerHTML = '<h3>IP Results:</h3>';
+                data.results.forEach(ip => {
+                    ipResultsDiv.innerHTML += `
+                        <p>
+                            IP: ${ip.ip}<br>
+                            Location: ${ip.location || 'Unknown'}<br>
+                            Active: ${ip.is_active}<br>
+                            Open Ports: ${ip.open_ports.join(', ') || 'None'}<br>
+                            Cloud Provider: ${ip.cloud_provider || 'Not on cloud'}
+                        </p>
+                    `;
+                });
+
+                // Simulate progress (since we don't have real-time progress from the backend)
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 5;
+                    if (progress > 100) {
+                        clearInterval(interval);
+                        progress = 100;
+                    }
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}%`;
+                }, 200);
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `<h3>Error:</h3><p>${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
